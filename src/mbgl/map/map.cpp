@@ -364,13 +364,13 @@ void Map::setLatLngZoom(const LatLng& latLng, double zoom, const EdgeInsets& pad
     impl->onUpdate();
 }
 
-CameraOptions Map::cameraForLatLngBounds(const LatLngBounds& bounds, const EdgeInsets& padding) const {
+CameraOptions Map::cameraForLatLngBounds(const LatLngBounds& bounds, const EdgeInsets& padding, optional<double> bearing) const {
     return cameraForLatLngs({
         bounds.northwest(),
         bounds.southwest(),
         bounds.southeast(),
         bounds.northeast(),
-    }, padding);
+    }, padding, bearing);
 }
 
 CameraOptions cameraForLatLngs(const std::vector<LatLng>& latLngs, const Transform& transform, const EdgeInsets& padding) {
@@ -426,17 +426,27 @@ CameraOptions cameraForLatLngs(const std::vector<LatLng>& latLngs, const Transfo
     return options;
 }
 
-CameraOptions Map::cameraForLatLngs(const std::vector<LatLng>& latLngs, const EdgeInsets& padding) const {
-    return mbgl::cameraForLatLngs(latLngs, impl->transform, padding);
+CameraOptions Map::cameraForLatLngs(const std::vector<LatLng>& latLngs, const EdgeInsets& padding, optional<double> bearing) const {
+    if(bearing) {
+        double angle = -*bearing * util::DEG2RAD;  // Convert to radians
+        Transform transform(impl->transform.getState());
+        transform.setAngle(angle);
+        CameraOptions options = mbgl::cameraForLatLngs(latLngs, transform, padding);
+        options.angle = angle;
+        return options;
+    } else {
+        return mbgl::cameraForLatLngs(latLngs, impl->transform, padding);
+    }
 }
 
-CameraOptions Map::cameraForLatLngs(const std::vector<LatLng>& latLngs, double heading, const EdgeInsets& padding) const {
-    double angle = -heading * util::DEG2RAD;
-    Transform transform(impl->transform.getState());
-    transform.setAngle(angle);
-    CameraOptions options = mbgl::cameraForLatLngs(latLngs, transform, padding);
-    options.angle = angle;
-    return options;
+CameraOptions Map::cameraForGeometry(const Geometry<double>& geometry, const EdgeInsets& padding, optional<double> bearing) const {
+
+    std::vector<LatLng> latLngs;
+    forEachPoint(geometry, [&](const Point<double>& pt) {
+        latLngs.push_back({ pt.y, pt.x });
+    });
+    return cameraForLatLngs(latLngs, padding, bearing);
+
 }
 
 LatLngBounds Map::latLngBoundsForCamera(const CameraOptions& camera) const {
