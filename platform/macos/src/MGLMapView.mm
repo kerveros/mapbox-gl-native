@@ -14,7 +14,7 @@
 #import "MGLMultiPoint_Private.h"
 #import "MGLOfflineStorage_Private.h"
 #import "MGLStyle_Private.h"
-#import "MGLMultiPoint_Private.h"
+#import "MGLShape_Private.h"
 
 #import "MGLAccountManager.h"
 #import "MGLMapCamera.h"
@@ -125,46 +125,6 @@ mbgl::util::UnitBezier MGLUnitBezierForMediaTimingFunction(CAMediaTimingFunction
     [function getControlPointAtIndex:0 values:p1];
     [function getControlPointAtIndex:1 values:p2];
     return { p1[0], p1[1], p2[0], p2[1] };
-}
-
-std::vector<mbgl::LatLng> coordinatesForShape(MGLShape *shape) {
-    std::vector<mbgl::LatLng> latLngs;
-    if ([shape isKindOfClass:[MGLMultiPoint class]]) {
-        MGLMultiPoint *multiPoint = (MGLMultiPoint *)shape;
-        latLngs.reserve(multiPoint.pointCount);
-        CLLocationCoordinate2D *coordinates = multiPoint.coordinates;
-        for(int i=0; i < [multiPoint pointCount]; i++) {
-            latLngs.push_back({coordinates[i].latitude, coordinates[i].longitude});
-        }
-    } else if ([shape isKindOfClass:[MGLPointCollection class]]) {
-        MGLPointCollection *pointCollection = (MGLPointCollection *)shape;
-        latLngs.reserve(pointCollection.pointCount);
-        CLLocationCoordinate2D *coordinates = pointCollection.coordinates;
-        for(int i=0; i < [pointCollection pointCount]; i++) {
-            latLngs.push_back({coordinates[i].latitude, coordinates[i].longitude});
-        }
-    } else if ([shape isKindOfClass:[MGLMultiPolygon class]]) {
-        MGLMultiPolygon *shapeCollection = (MGLMultiPolygon *)shape;
-        for(MGLPolygon *s in shapeCollection.polygons) {
-            auto shapeLatLngs = coordinatesForShape(s);
-            latLngs.insert(latLngs.end(), shapeLatLngs.begin(), shapeLatLngs.end());
-        }
-    } else if ([shape isKindOfClass:[MGLMultiPolyline class]]) {
-        MGLMultiPolyline *shapeCollection = (MGLMultiPolyline *)shape;
-        for(MGLPolyline *s in shapeCollection.polylines) {
-            auto shapeLatLngs = coordinatesForShape(s);
-            latLngs.insert(latLngs.end(), shapeLatLngs.begin(), shapeLatLngs.end());
-        }
-    } else if ([shape isKindOfClass:[MGLShapeCollection class]]) {
-        MGLShapeCollection *shapeCollection = (MGLShapeCollection *)shape;
-        for(MGLShape *s in shapeCollection.shapes) {
-            auto shapeLatLngs = coordinatesForShape(s);
-            latLngs.insert(latLngs.end(), shapeLatLngs.begin(), shapeLatLngs.end());
-        }
-    } else {
-        NSLog(@"Shape doesn't have multiple points");
-    }
-    return latLngs;
 }
 
 /// Lightweight container for metadata about an annotation, including the annotation itself.
@@ -1297,14 +1257,13 @@ public:
     _mbglMap->easeTo(cameraOptions, animationOptions);
 }
 
-- (void)setVisibleShape:(MGLMultiPoint *)shape heading:(double)heading edgePadding:(NSEdgeInsets)insets animated:(BOOL)animated {
+- (void)setVisibleShape:(MGLShape *)shape direction:(double)direction edgePadding:(NSEdgeInsets)insets animated:(BOOL)animated {
     _mbglMap->cancelTransitions();
 
     mbgl::EdgeInsets padding = MGLEdgeInsetsFromNSEdgeInsets(insets);
     padding += MGLEdgeInsetsFromNSEdgeInsets(self.contentInsets);
 
-    std::vector<mbgl::LatLng> latLngs = coordinatesForShape(shape);
-    mbgl::CameraOptions cameraOptions = _mbglMap->cameraForLatLngs(latLngs, heading, padding);
+    mbgl::CameraOptions cameraOptions = _mbglMap->cameraForGeometry([shape geometryObject], padding, direction);
 
     mbgl::AnimationOptions animationOptions;
     if (animated) {
@@ -1334,12 +1293,11 @@ public:
     return [self cameraForCameraOptions:cameraOptions];
 }
 
-- (MGLMapCamera *)cameraThatFitsShape:(MGLShape *)shape heading:(double)heading edgePadding:(NSEdgeInsets)insets {
+- (MGLMapCamera *)cameraThatFitsShape:(MGLShape *)shape direction:(double)direction edgePadding:(NSEdgeInsets)insets {
     mbgl::EdgeInsets padding = MGLEdgeInsetsFromNSEdgeInsets(insets);
     padding += MGLEdgeInsetsFromNSEdgeInsets(self.contentInsets);
 
-    std::vector<mbgl::LatLng> latLngs = coordinatesForShape(shape);
-    mbgl::CameraOptions cameraOptions = _mbglMap->cameraForLatLngs(latLngs, heading, padding);
+    mbgl::CameraOptions cameraOptions = _mbglMap->cameraForGeometry([shape geometryObject], padding, direction);
 
     return [self cameraForCameraOptions:cameraOptions];
 }

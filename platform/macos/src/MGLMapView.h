@@ -404,17 +404,17 @@ MGL_EXPORT IB_DESIGNABLE
 - (void)setVisibleCoordinateBounds:(MGLCoordinateBounds)bounds edgePadding:(NSEdgeInsets)insets animated:(BOOL)animated;
 
 /**
- Changes the receiver’s viewport to fit the given shape, with the specified heading,
+ Changes the receiver’s viewport to fit the given shape, with the specified direction,
  and optionally some additional padding on each side.
 
  @param shape The shape that the viewport will show in its entirety.
- @param heading The heading of the viewport, measured in degrees clockwise from true north.
+ @param direction The direction of the viewport, measured in degrees clockwise from true north.
  @param insets The minimum padding (in screen points) that will be visible
     around the given coordinate bounds.
  @param animated Specify `YES` to animate the change by smoothly scrolling and
     zooming or `NO` to immediately display the given bounds.
  */
-- (void)setVisibleShape:(MGLShape *)shape heading:(double)heading edgePadding:(NSEdgeInsets)insets animated:(BOOL)animated;
+- (void)setVisibleShape:(MGLShape *)shape direction:(double)direction edgePadding:(NSEdgeInsets)insets animated:(BOOL)animated;
 
 /**
  Sets the visible region so that the map displays the specified annotations.
@@ -471,19 +471,18 @@ MGL_EXPORT IB_DESIGNABLE
 - (MGLMapCamera *)cameraThatFitsCoordinateBounds:(MGLCoordinateBounds)bounds edgePadding:(NSEdgeInsets)insets;
 
 /**
- Returns the camera that best fits the given shape, with the specified heading,
+ Returns the camera that best fits the given shape, with the specified direction,
  optionally with some additional padding on each side.
 
  @param shape The shape to fit to the receiver’s viewport.
- @param heading The heading of the viewport, measured in degrees clockwise from true north.
+ @param direction The direction of the viewport, measured in degrees clockwise from true north.
  @param insets The minimum padding (in screen points) that would be visible
     around the returned camera object if it were set as the receiver’s camera.
- @return A camera object centered on the same location as the coordinate bounds
-    with zoom level as high (close to the ground) as possible while still
-    including the entire coordinate bounds. The camera object uses the current
-    direction and pitch.
+ @return A camera object centered on the shape's center with zoom level as high 
+    (close to the ground) as possible while still including the entire shape. The
+    camera object uses the current pitch.
  */
-- (MGLMapCamera *)cameraThatFitsShape:(MGLShape *)shape heading:(double)heading edgePadding:(NSEdgeInsets)insets;
+- (MGLMapCamera *)cameraThatFitsShape:(MGLShape *)shape direction:(double)direction edgePadding:(NSEdgeInsets)insets;
 
 /**
  A Boolean value indicating whether the receiver automatically adjusts its
