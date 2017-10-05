@@ -1122,6 +1122,10 @@ public:
 }
 
 - (void)setCamera:(MGLMapCamera *)camera withDuration:(NSTimeInterval)duration animationTimingFunction:(nullable CAMediaTimingFunction *)function completionHandler:(nullable void (^)(void))completion {
+    [self setCamera:camera withDuration:duration animationTimingFunction:function edgePadding:self.contentInsets completionHandler:completion];
+}
+
+- (void)setCamera:(MGLMapCamera *)camera withDuration:(NSTimeInterval)duration animationTimingFunction:(nullable CAMediaTimingFunction *)function edgePadding:(NSEdgeInsets)edgePadding completionHandler:(nullable void (^)(void))completion {
     mbgl::AnimationOptions animationOptions;
     if (duration > 0) {
         animationOptions.duration.emplace(MGLDurationFromTimeInterval(duration));
@@ -1149,7 +1153,7 @@ public:
 
     [self willChangeValueForKey:@"camera"];
     _mbglMap->cancelTransitions();
-    mbgl::CameraOptions cameraOptions = [self cameraOptionsObjectForAnimatingToCamera:camera];
+    mbgl::CameraOptions cameraOptions = [self cameraOptionsObjectForAnimatingToCamera:camera edgePadding:edgePadding];
     _mbglMap->easeTo(cameraOptions, animationOptions);
     [self didChangeValueForKey:@"camera"];
 }
@@ -1195,17 +1199,17 @@ public:
 
     [self willChangeValueForKey:@"camera"];
     _mbglMap->cancelTransitions();
-    mbgl::CameraOptions cameraOptions = [self cameraOptionsObjectForAnimatingToCamera:camera];
+    mbgl::CameraOptions cameraOptions = [self cameraOptionsObjectForAnimatingToCamera:camera edgePadding:self.contentInsets];
     _mbglMap->flyTo(cameraOptions, animationOptions);
     [self didChangeValueForKey:@"camera"];
 }
 
 /// Returns a CameraOptions object that specifies parameters for animating to
 /// the given camera.
-- (mbgl::CameraOptions)cameraOptionsObjectForAnimatingToCamera:(MGLMapCamera *)camera {
+- (mbgl::CameraOptions)cameraOptionsObjectForAnimatingToCamera:(MGLMapCamera *)camera edgePadding:(NSEdgeInsets) edgePadding {
     mbgl::CameraOptions options;
     options.center = MGLLatLngFromLocationCoordinate2D(camera.centerCoordinate);
-    options.padding = MGLEdgeInsetsFromNSEdgeInsets(self.contentInsets);
+    options.padding = MGLEdgeInsetsFromNSEdgeInsets(edgePadding);
     options.zoom = MGLZoomLevelForAltitude(camera.altitude, camera.pitch,
                                            camera.centerCoordinate.latitude,
                                            self.frame.size);
@@ -1245,31 +1249,6 @@ public:
         animationOptions.duration = MGLDurationFromTimeInterval(MGLAnimationDuration);
     }
     
-    MGLMapCamera *camera = [self cameraForCameraOptions:cameraOptions];
-    if ([self.camera isEqualToMapCamera:camera]) {
-        return;
-    }
-
-    [self willChangeValueForKey:@"visibleCoordinateBounds"];
-    animationOptions.transitionFinishFn = ^() {
-        [self didChangeValueForKey:@"visibleCoordinateBounds"];
-    };
-    _mbglMap->easeTo(cameraOptions, animationOptions);
-}
-
-- (void)setVisibleShape:(MGLShape *)shape direction:(double)direction edgePadding:(NSEdgeInsets)insets animated:(BOOL)animated {
-    _mbglMap->cancelTransitions();
-
-    mbgl::EdgeInsets padding = MGLEdgeInsetsFromNSEdgeInsets(insets);
-    padding += MGLEdgeInsetsFromNSEdgeInsets(self.contentInsets);
-
-    mbgl::CameraOptions cameraOptions = _mbglMap->cameraForGeometry([shape geometryObject], padding, direction);
-
-    mbgl::AnimationOptions animationOptions;
-    if (animated) {
-        animationOptions.duration = MGLDurationFromTimeInterval(MGLAnimationDuration);
-    }
-
     MGLMapCamera *camera = [self cameraForCameraOptions:cameraOptions];
     if ([self.camera isEqualToMapCamera:camera]) {
         return;

@@ -323,6 +323,24 @@ MGL_EXPORT IB_DESIGNABLE
  */
 - (void)setCamera:(MGLMapCamera *)camera withDuration:(NSTimeInterval)duration animationTimingFunction:(nullable CAMediaTimingFunction *)function completionHandler:(nullable void (^)(void))completion;
 
+ /**
+ Moves the viewpoint to a different location with respect to the map with an
+ optional transition duration and timing function.
+ 
+ @param camera The new viewpoint.
+ @param duration The amount of time, measured in seconds, that the transition
+ animation should take. Specify `0` to jump to the new viewpoint
+ instantaneously.
+ @param function A timing function used for the animation. Set this parameter to
+ `nil` for a transition that matches most system animations. If the duration
+ is `0`, this parameter is ignored.
+ @param edgePadding The minimum padding (in screen points) that would be visible
+ around the returned camera object if it were set as the receiver’s camera.
+  @param completion The block to execute after the animation finishes.
+ */
+- (void)setCamera:(MGLMapCamera *)camera withDuration:(NSTimeInterval)duration animationTimingFunction:(nullable CAMediaTimingFunction *)function edgePadding:(NSEdgeInsets)edgePadding completionHandler:(nullable void (^)(void))completion;
+
+
 /**
  Moves the viewpoint to a different location using a transition animation that
  evokes powered flight and a default duration based on the length of the flight
@@ -402,19 +420,6 @@ MGL_EXPORT IB_DESIGNABLE
     zooming or `NO` to immediately display the given bounds.
  */
 - (void)setVisibleCoordinateBounds:(MGLCoordinateBounds)bounds edgePadding:(NSEdgeInsets)insets animated:(BOOL)animated;
-
-/**
- Changes the receiver’s viewport to fit the given shape, with the specified direction,
- and optionally some additional padding on each side.
-
- @param shape The shape that the viewport will show in its entirety.
- @param direction The direction of the viewport, measured in degrees clockwise from true north.
- @param insets The minimum padding (in screen points) that will be visible
-    around the given coordinate bounds.
- @param animated Specify `YES` to animate the change by smoothly scrolling and
-    zooming or `NO` to immediately display the given bounds.
- */
-- (void)setVisibleShape:(MGLShape *)shape direction:(double)direction edgePadding:(NSEdgeInsets)insets animated:(BOOL)animated;
 
 /**
  Sets the visible region so that the map displays the specified annotations.
