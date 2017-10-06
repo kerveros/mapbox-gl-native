@@ -415,6 +415,10 @@ public class MapView extends FrameLayout {
 
   @Override
   public boolean onHoverEvent(MotionEvent event) {
+    if (mapZoomButtonController == null) {
+      return super.onHoverEvent(event);
+    }
+
     switch (event.getActionMasked()) {
       case MotionEvent.ACTION_HOVER_ENTER:
       case MotionEvent.ACTION_HOVER_MOVE:
