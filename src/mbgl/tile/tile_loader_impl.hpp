@@ -15,7 +15,7 @@ TileLoader<T>::TileLoader(T& tile_,
                           const TileParameters& parameters,
                           const Tileset& tileset)
     : tile(tile_),
-      necessity(Necessity::Optional),
+      necessity(TileNecessity::Optional),
       resource(Resource::tile(
         tileset.tiles.at(0),
         parameters.pixelRatio,
@@ -25,21 +25,21 @@ TileLoader<T>::TileLoader(T& tile_,
         tileset.scheme)),
       fileSource(parameters.fileSource) {
     assert(!request);
-    if (fileSource.supportsOptionalRequests()) {
+    if (fileSource.supportsCacheOnlyRequests()) {
         // When supported, the first request is always optional, even if the TileLoader
         // is marked as required. That way, we can let the first optional request continue
         // to load when the TileLoader is later changed from required to optional. If we
         // started out with a required request, we'd have to cancel everything, including the
         // initial optional part of the request.
-        loadOptional();
+        loadFromCache();
     } else {
         // When the FileSource doesn't support optional requests, we do nothing until the
         // data is definitely required.
-        if (necessity == Necessity::Required) {
-            loadRequired();
+        if (necessity == TileNecessity::Required) {
+            loadFromNetwork();
         } else {
             // We're using this field to check whether the pending request is optional or required.
-            resource.necessity = Resource::Optional;
+            resource.loadingMethod = Resource::LoadingMethod::All;
         }
     }
 }
@@ -48,29 +48,29 @@ template <typename T>
 TileLoader<T>::~TileLoader() = default;
 
 template <typename T>
-void TileLoader<T>::loadOptional() {
+void TileLoader<T>::loadFromCache() {
     assert(!request);
 
-    resource.necessity = Resource::Optional;
+    resource.loadingMethod = Resource::LoadingMethod::CacheOnly;
     request = fileSource.request(resource, [this](Response res) {
         request.reset();
 
-        tile.setTriedOptional();
+        tile.setTriedCache();
 
         if (res.error && res.error->reason == Response::Error::Reason::NotFound) {
             // When the optional request could not be satisfied, don't treat it as an error.
             // Instead, we make sure that the next request knows that there has been an optional
             // request before by setting one of the prior* fields.
             resource.priorModified = res.modified;
-            resource.priorExpires = Timestamp{ Seconds::zero() };
+            resource.priorExpires = res.expires;
             resource.priorEtag = res.etag;
             resource.priorData = res.data;
         } else {
             loadedData(res);
         }
 
-        if (necessity == Necessity::Required) {
-            loadRequired();
+        if (necessity == TileNecessity::Required) {
+            loadFromNetwork();
         }
     });
 }
@@ -78,14 +78,15 @@ void TileLoader<T>::loadOptional() {
 template <typename T>
 void TileLoader<T>::makeRequired() {
     if (!request) {
-        loadRequired();
+        loadFromNetwork();
     }
 }
 
 template <typename T>
 void TileLoader<T>::makeOptional() {
-    if (resource.necessity == Resource::Required && request) {
-        // Abort a potential HTTP request.
+    if (resource.loadingMethod == Resource::LoadingMethod::NetworkOnly && request) {
+        // Abort the current request, but only when we know that we're specifically querying for a
+        // network resource only.
         request.reset();
     }
 }
@@ -98,19 +99,23 @@ void TileLoader<T>::loadedData(const Response& res) {
         resource.priorExpires = res.expires;
         // Do not notify the tile; when we get this message, it already has the current
         // version of the data.
+        tile.setMetadata(res.modified, res.expires);
     } else {
         resource.priorModified = res.modified;
         resource.priorExpires = res.expires;
         resource.priorEtag = res.etag;
-        tile.setData(res.noContent ? nullptr : res.data, res.modified, res.expires);
+        tile.setMetadata(res.modified, res.expires);
+        tile.setData(res.noContent ? nullptr : res.data);
     }
 }
 
 template <typename T>
-void TileLoader<T>::loadRequired() {
+void TileLoader<T>::loadFromNetwork() {
     assert(!request);
 
-    resource.necessity = Resource::Required;
+    // Instead of using Resource::LoadingMethod::All, we're first doing a CacheOnly, and then a
+    // NetworkOnly request.
+    resource.loadingMethod = Resource::LoadingMethod::NetworkOnly;
     request = fileSource.request(resource, [this](Response res) { loadedData(res); });
 }
 
